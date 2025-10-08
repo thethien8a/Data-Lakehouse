@@ -129,3 +129,6 @@ config/local.json
 # Backup files
 *.bak
 *.backup
+
+data/*.xlsx
+data/online_retail_II.xlsx
