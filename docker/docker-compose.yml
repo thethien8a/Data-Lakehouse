@@ -22,4 +22,3 @@ services:
 
 volumes:
   minio_data:
-    driver: local

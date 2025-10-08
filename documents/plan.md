@@ -55,7 +55,7 @@
 
 **📥 Data Sources:**
 - Historical file (UCI Online Retail II or public e-commerce CSV)
-- Daily mock data generator for micro-batch simulation
+- Daily ingestion from UCI dataset for micro-batch simulation
 
 **📋 Raw Tables (Bronze Layer):**
 - `orders` - Order transactions
@@ -182,8 +182,7 @@ lakehouse-project/
 
 ### Phase 2: Data Ingestion *(2-3 days)*
 **Bronze Layer Implementation**
-- 🎲 Create realistic mock data generator
-- 📥 Build data ingestion scripts
+- 📥 Build data ingestion scripts for daily UCI data processing
 - 💾 Implement Bronze layer storage
 - 🧪 Test end-to-end data loading pipeline
 
@@ -236,6 +235,15 @@ lakehouse-project/
 | **4** | Production Ready | Orchestration, monitoring, documentation | ✅ |
 
 **Total Timeline: 4 weeks** | **Effort: Part-time learning project**
+
+---
+## 🔄 Updated Implementation Approach
+
+### Daily Data Pipeline with UCI Dataset
+Based on the project evolution, the daily data pipeline will specifically:
+- **Phase 2**: Use `scripts/download_data.py` to initially download UCI Online Retail II dataset (one-time)
+- **Phase 5**: Schedule `scripts/ingest_data.py` via Airflow to daily process portions of the UCI dataset
+- This approach simulates daily micro-batches using historical UCI data rather than generating mock data
 
 ---
 
