@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-"""
-Script to ingest UCI Online Retail II data into MinIO as Parquet format
-"""
+
 import os
 import pandas as pd
 from pathlib import Path
@@ -15,11 +12,11 @@ from dotenv import load_dotenv
 import argparse
 import io
 
-load_dotenv()
-
-# Configure logging
+# Configure logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 def create_minio_client():
     """
@@ -27,7 +24,7 @@ def create_minio_client():
     """
     # Use default MinIO credentials
     minio_client = Minio(
-        "localhost:9090",
+        "localhost:9000",
         access_key=os.getenv("MINIO_ROOT_USER"),
         secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
         secure=False
@@ -48,27 +45,29 @@ def ensure_bucket_exists(client, bucket_name):
         logger.error(f"Error creating bucket '{bucket_name}': {e}")
         raise
 
-def get_next_processing_date():
+def get_next_processing_date(script_dir):
     """
     Get the next date to process based on last processed date
     """
-    date_file = Path("../data/last_processed_date.txt")
+    # Use path relative to script location
+    date_file = script_dir / "../data/last_processed_date.txt"
     if date_file.exists():
         with open(date_file, 'r') as f:
             last_date = f.read().strip()
             last_date = datetime.strptime(last_date, "%Y-%m-%d").date()
             next_date = last_date + timedelta(days=1)
     else:
-        # Default start date: 2010-12-01 
+        # Default start date: 2010-12-01
         next_date = datetime(2010, 12, 1).date()
     
     return next_date
 
-def update_last_processed_date(date):
+def update_last_processed_date(date, script_dir):
     """
     Update the last processed date
     """
-    date_file = Path("../data/last_processed_date.txt")
+    # Use path relative to script location
+    date_file = script_dir / "../data/last_processed_date.txt"
     with open(date_file, 'w') as f:
         f.write(date.strftime("%Y-%m-%d"))
 
@@ -97,6 +96,7 @@ def load_online_retail_data_by_date(file_path, target_date):
         if not df_filtered.empty:
             sheets_data[sheet_name] = df_filtered
             logger.info(f"Sheet '{sheet_name}' filtered for {target_date}, shape: {df_filtered.shape}")
+            break
         else:
             logger.info(f"No data found for {target_date} in sheet '{sheet_name}'")
     
@@ -114,6 +114,9 @@ def convert_to_parquet_and_upload(client, sheets_data, target_date):
         try:
             # Clean sheet name to be compatible with MinIO object names
             clean_sheet_name = sheet_name.replace(" ", "_").replace("/", "_").lower()
+            
+            for col in df.columns:
+                df[col] = df[col].astype('str')
             
             # Create a Parquet file in memory
             table = pa.Table.from_pandas(df)
@@ -148,13 +151,16 @@ def main():
     parser.add_argument('--date', type=str, help='Date to process in YYYY-MM-DD format (e.g., 2010-12-01)')
     args = parser.parse_args()
     
-    # Path to the downloaded Excel file
-    excel_file_path = "../data/online_retail_II.xlsx"  
+    # Path to the downloaded Excel file - use path relative to script location
+    script_dir = Path(__file__).parent
+    excel_file_path = (script_dir / "../data/online_retail_II.xlsx").resolve()
     
     # Check if the Excel file exists
     if not Path(excel_file_path).exists():
         logger.error(f"Excel file not found at {excel_file_path}")
         return
+    else:
+        logger.info(f"Found Excel file at: {excel_file_path}")
          
     try:
         # Create MinIO client
@@ -168,7 +174,7 @@ def main():
             target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
             logger.info(f"Processing data for specified date: {target_date}")
         else:
-            target_date = get_next_processing_date()
+            target_date = get_next_processing_date(script_dir)
             logger.info(f"Processing data for next date in sequence: {target_date}")
         
         # Load the data filtered by date
@@ -179,7 +185,7 @@ def main():
         
         # Update the last processed date only if there was data for this date
         if sheets_data:
-            update_last_processed_date(target_date)
+            update_last_processed_date(target_date, script_dir)
             logger.info(f"Data ingestion for {target_date} completed successfully!")
         else:
             logger.info(f"No data found for {target_date}, skipping date update.")
